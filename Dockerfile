@@ -23,7 +23,8 @@ FROM node:22-alpine AS frontend-build
 
 WORKDIR /app
 COPY apps/frontend/package*.json ./
-RUN npm ci
+COPY apps/frontend/scripts ./scripts
+RUN npm install
 
 COPY apps/frontend/ ./
 # Modify for web build (remove Electron-specific code)
