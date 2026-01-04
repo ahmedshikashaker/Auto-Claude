@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile
     container_name: auto-claude
     ports:
-      - "9000:9000"
+      - "9005:9000"
     volumes:
       # Mount user's projects (read-write for agent work)
       - ${PROJECTS_PATH:-./projects}:/projects
@@ -90,7 +90,13 @@ services:
       DATABASE_TYPE: falkordb
       FALKORDB_HOST: falkordb
       FALKORDB_PORT: "6379"
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LLM_PROVIDER: ollama
+      EMBEDDER_PROVIDER: ollama
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_LLM_MODEL: deepseek-r1:7b
+      OLLAMA_EMBEDDING_MODEL: embeddinggemma
+      OLLAMA_EMBEDDING_DIM: 768
+      OPENAI_API_KEY: ollama
     depends_on:
       falkordb:
         condition: service_healthy
