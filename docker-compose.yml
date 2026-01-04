@@ -1,0 +1,64 @@
+# docker-compose.yml
+name: auto-claude
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auto-claude
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount user's projects (read-write for agent work)
+      - ${PROJECTS_PATH:-./projects}:/projects
+      # Persistent data
+      - auto-claude-data:/data
+      # Claude CLI config (for OAuth tokens)
+      - auto-claude-claude:/home/claude/.claude
+    environment:
+      - CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN:-}
+      - SECURITY_STRICT_MODE=${SECURITY_STRICT_MODE:-true}
+      - GRAPHITI_ENABLED=${GRAPHITI_ENABLED:-false}
+    depends_on:
+      - falkordb
+    networks:
+      - auto-claude-net
+
+  falkordb:
+    image: falkordb/falkordb:latest
+    container_name: auto-claude-falkordb
+    volumes:
+      - falkordb-data:/data
+    networks:
+      - auto-claude-net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  graphiti-mcp:
+    image: falkordb/graphiti-knowledge-graph-mcp:latest
+    container_name: auto-claude-graphiti
+    platform: linux/amd64
+    environment:
+      DATABASE_TYPE: falkordb
+      FALKORDB_HOST: falkordb
+      FALKORDB_PORT: "6379"
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    depends_on:
+      falkordb:
+        condition: service_healthy
+    networks:
+      - auto-claude-net
+
+volumes:
+  auto-claude-data:
+  auto-claude-claude:
+  falkordb-data:
+
+
+networks:
+  auto-claude-net:
+    driver: bridge

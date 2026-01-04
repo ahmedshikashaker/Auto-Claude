@@ -1,0 +1,17 @@
+# docker/Caddyfile
+:3000 {
+    # Serve React SPA
+    root * /var/www/html
+    file_server
+    try_files {path} /index.html
+
+    # Proxy API requests
+    handle /api/* {
+        reverse_proxy localhost:8000
+    }
+
+    # Proxy WebSocket requests
+    handle /ws/* {
+        reverse_proxy localhost:8000
+    }
+}
