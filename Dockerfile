@@ -12,28 +12,25 @@ RUN curl -fsSL https://claude.ai/install.sh | sh
 
 # Set up Python environment
 WORKDIR /app
-COPY auto-claude/requirements.txt .
+COPY apps/backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install API dependencies
-COPY auto-claude/api/requirements.txt ./api-requirements.txt
-RUN pip install --no-cache-dir -r api-requirements.txt
-
 # Copy application code
-COPY auto-claude/ ./auto-claude/
+COPY apps/backend/ ./apps/backend/
 
 # --- Frontend Build Stage ---
 FROM node:22-alpine AS frontend-build
 
 WORKDIR /app
-COPY auto-claude-ui/package*.json ./
+COPY apps/frontend/package*.json ./
 RUN npm ci
 
-COPY auto-claude-ui/ ./
+COPY apps/frontend/ ./
 # Modify for web build (remove Electron-specific code)
 ENV VITE_API_URL=/api
 ENV VITE_WS_URL=/ws
-RUN npm run build:web
+# Using standard build script as build:web does not exist
+RUN npm run build
 
 # --- Production Stage ---
 FROM python-base AS production
@@ -41,8 +38,8 @@ FROM python-base AS production
 # Install Caddy for reverse proxy
 RUN apt-get update && apt-get install -y caddy && rm -rf /var/lib/apt/lists/*
 
-# Copy frontend build
-COPY --from=frontend-build /app/dist/web /var/www/html
+# Copy frontend build (electron-vite outputs to out/renderer)
+COPY --from=frontend-build /app/out/renderer /var/www/html
 
 # Copy Caddyfile
 COPY docker/Caddyfile /etc/caddy/Caddyfile
@@ -51,7 +48,7 @@ COPY docker/Caddyfile /etc/caddy/Caddyfile
 RUN mkdir -p /data /projects /home/claude
 
 # Environment
-ENV PYTHONPATH=/app/auto-claude
+ENV PYTHONPATH=/app/apps/backend
 ENV DATA_DIR=/data
 ENV PROJECTS_DIR=/projects
 ENV CLAUDE_CONFIG_DIR=/home/claude/.claude
