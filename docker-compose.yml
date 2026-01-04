@@ -59,12 +59,13 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
+    entrypoint: /bin/sh
     environment:
       - OLLAMA_HOST=ollama:11434
     volumes:
       - ollama_data:/root/.ollama
-    command: >
-      /bin/sh -c " echo 'Waiting for Ollama...'; sleep 5; echo 'Pulling embeddinggemma...'; ollama pull embeddinggemma; echo 'Pulling deepseek-r1:7b...'; ollama pull deepseek-r1:7b; echo 'Models pulled successfully.'; "
+      - ./docker/init-ollama.sh:/init-ollama.sh
+    command: [ "/init-ollama.sh" ]
     networks:
       - auto-claude-net
 
