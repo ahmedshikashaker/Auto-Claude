@@ -19,9 +19,52 @@ services:
     environment:
       - CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN:-}
       - SECURITY_STRICT_MODE=${SECURITY_STRICT_MODE:-true}
-      - GRAPHITI_ENABLED=${GRAPHITI_ENABLED:-false}
+      - GRAPHITI_ENABLED=${GRAPHITI_ENABLED:-true}
+      - GRAPHITI_LLM_PROVIDER=ollama
+      - GRAPHITI_EMBEDDER_PROVIDER=ollama
+      - GRAPHITI_DATABASE=auto_claude_memory
+      - GRAPHITI_DB_PATH=/data/memories
+      # Connect to internal Ollama service
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_LLM_MODEL=deepseek-r1:7b
+      - OLLAMA_EMBEDDING_MODEL=embeddinggemma
+      - OLLAMA_EMBEDDING_DIM=768
+      - OPENAI_API_KEY=ollama
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
     depends_on:
-      - falkordb
+      falkordb:
+        condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
+    networks:
+      - auto-claude-net
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: auto-claude-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - auto-claude-net
+    healthcheck:
+      test: [ "CMD", "ollama", "list" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: auto-claude-ollama-init
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=ollama:11434
+    volumes:
+      - ollama_data:/root/.ollama
+    command: >
+      /bin/sh -c " echo 'Waiting for Ollama...'; sleep 5; echo 'Pulling embeddinggemma...'; ollama pull embeddinggemma; echo 'Pulling deepseek-r1:7b...'; ollama pull deepseek-r1:7b; echo 'Models pulled successfully.'; "
     networks:
       - auto-claude-net
 
@@ -57,6 +100,7 @@ volumes:
   auto-claude-data:
   auto-claude-claude:
   falkordb-data:
+  ollama_data:
 
 
 networks:
