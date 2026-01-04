@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile
     container_name: auto-claude
     ports:
-      - "3000:3000"
+      - "9000:9000"
     volumes:
       # Mount user's projects (read-write for agent work)
       - ${PROJECTS_PATH:-./projects}:/projects

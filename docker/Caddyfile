@@ -1,5 +1,5 @@
 # docker/Caddyfile
-:3000 {
+:9000 {
     # Serve React SPA
     root * /var/www/html
     file_server
