@@ -600,21 +600,64 @@ export class AgentProcessManager {
       }
 
       buffer += newData;
+
+      // Defensive truncation: If buffer gets dangerously large (likely one huge line),
+      // we must truncate it to prevent "JSON message exceeded maximum buffer size" errors.
+      // The error typically triggers around 10MB. We'll set a safe limit of 5MB per line.
+      const MAX_LINE_LENGTH = 5 * 1024 * 1024; // 5MB safely under 10MB limit
+
       const lines = buffer.split('\n');
-      const remaining = lines.pop() || '';
 
-      if (isDebug && newData.includes('__EXEC_PHASE__')) {
-        console.log(`[PhaseDebug:${taskId}] Split into ${lines.length} complete lines, remaining buffer: "${remaining.substring(0, 100)}"`);
-      }
+      // Process all complete lines
+      // The last element is either an empty string (if buffer ended with \n)
+      // or the incomplete next line.
+      const remainingIndex = lines.length - 1;
 
-      for (const line of lines) {
+      for (let i = 0; i < remainingIndex; i++) {
+        let line = lines[i];
+
+        // Truncate excessively long lines
+        if (line.length > MAX_LINE_LENGTH) {
+          const truncatedMsg = ` ... [TRUNCATED ${line.length - MAX_LINE_LENGTH} bytes]`;
+          line = line.substring(0, MAX_LINE_LENGTH) + truncatedMsg;
+
+          // Log a warning about the truncation
+          const warning = `[AgentProcess] Warning: Truncated excessively large output line (${Math.round((line.length + truncatedMsg.length) / 1024 / 1024)}MB) to prevent buffer overflow.`;
+          this.emitter.emit('log', taskId, warning + '\n');
+          console.warn(warning);
+        }
+
         if (line.trim()) {
           this.emitter.emit('log', taskId, line + '\n');
           processLog(line);
           if (isDebug) {
-            console.log(`[Agent:${taskId}] ${line}`);
+            console.log(`[Agent:${taskId}] ${line.substring(0, 200)}...`);
           }
         }
+      }
+
+      // Handle the remaining incomplete chunk
+      let remaining = lines[remainingIndex] || '';
+
+      // ALSO apply truncation to the buffering chunk itself if it grows too large waiting for a newline
+      if (remaining.length > MAX_LINE_LENGTH) {
+        const truncatedMsg = ` ... [TRUNCATED BUFFER]`;
+        const chunk = remaining.substring(0, MAX_LINE_LENGTH) + truncatedMsg;
+
+        // Force emit this truncated chunk as a line to clear the buffer
+        this.emitter.emit('log', taskId, chunk + '\n');
+        processLog(chunk);
+
+        const warning = `[AgentProcess] Warning: Force-flushed and truncated oversized buffer chunk (${Math.round(remaining.length / 1024 / 1024)}MB).`;
+        this.emitter.emit('log', taskId, warning + '\n');
+        console.warn(warning);
+
+        // Clear remaining since we just flushed it
+        remaining = '';
+      }
+
+      if (isDebug && newData.includes('__EXEC_PHASE__')) {
+        console.log(`[PhaseDebug:${taskId}] Split into ${remainingIndex} complete lines, remaining buffer: "${remaining.substring(0, 100)}"`);
       }
 
       return remaining;
