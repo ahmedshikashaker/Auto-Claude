@@ -1097,16 +1097,7 @@ class GitHubOrchestrator:
             # Branch behind is a soft blocker - NEEDS_REVISION, not BLOCKED
             elif is_branch_behind:
                 verdict = MergeVerdict.NEEDS_REVISION
-                if high or medium:
-                    # Branch behind + code issues that need addressing
-                    total = len(high) + len(medium)
-                    reasoning = (
-                        f"{BRANCH_BEHIND_REASONING} "
-                        f"{total} issue(s) must be addressed ({len(high)} required, {len(medium)} recommended)."
-                    )
-                else:
-                    # Just branch behind, no code issues
-                    reasoning = BRANCH_BEHIND_REASONING
+                reasoning = BRANCH_BEHIND_REASONING
                 if low:
                     reasoning += f" {len(low)} non-blocking suggestion(s) to consider."
             else:

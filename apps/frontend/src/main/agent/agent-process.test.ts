@@ -111,31 +111,16 @@ vi.mock('electron', () => ({
   }
 }));
 
-// Mock cli-tool-manager to avoid blocking tool detection on Windows
-vi.mock('../cli-tool-manager', () => ({
-  getToolInfo: vi.fn(() => ({ found: false, path: null, source: 'mock' })),
-  deriveGitBashPath: vi.fn(() => null),
-  clearCache: vi.fn()
-}));
-
-// Mock env-utils to avoid blocking environment augmentation
-vi.mock('../env-utils', () => ({
-  getAugmentedEnv: vi.fn(() => ({ ...process.env }))
-}));
-
 // Mock fs.existsSync for getAutoBuildSourcePath path validation
 vi.mock('fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('fs')>();
   return {
     ...actual,
-    existsSync: vi.fn((inputPath: string) => {
-      // Normalize path separators for cross-platform compatibility
-      // path.join() uses backslashes on Windows, so we normalize to forward slashes
-      const normalizedPath = inputPath.replace(/\\/g, '/');
+    existsSync: vi.fn((path: string) => {
       // Return true for the fake auto-build path and its expected files
-      if (normalizedPath === '/fake/auto-build' ||
-          normalizedPath === '/fake/auto-build/runners' ||
-          normalizedPath === '/fake/auto-build/runners/spec_runner.py') {
+      if (path === '/fake/auto-build' ||
+          path === '/fake/auto-build/runners' ||
+          path === '/fake/auto-build/runners/spec_runner.py') {
         return true;
       }
       return false;
@@ -213,10 +198,10 @@ describe('AgentProcessManager - API Profile Env Injection (Story 2.3)', () => {
 
     it('should inject model env vars when active profile has models configured', async () => {
       const mockApiProfileEnv = {
-        ANTHROPIC_MODEL: 'claude-sonnet-4-5-20250929',
-        ANTHROPIC_DEFAULT_HAIKU_MODEL: 'claude-haiku-4-5-20251001',
-        ANTHROPIC_DEFAULT_SONNET_MODEL: 'claude-sonnet-4-5-20250929',
-        ANTHROPIC_DEFAULT_OPUS_MODEL: 'claude-opus-4-5-20251101'
+        ANTHROPIC_MODEL: 'claude-3-5-sonnet-20241022',
+        ANTHROPIC_DEFAULT_HAIKU_MODEL: 'claude-3-5-haiku-20241022',
+        ANTHROPIC_DEFAULT_SONNET_MODEL: 'claude-3-5-sonnet-20241022',
+        ANTHROPIC_DEFAULT_OPUS_MODEL: 'claude-3-5-opus-20241022'
       };
 
       vi.mocked(profileService.getAPIProfileEnv).mockResolvedValue(mockApiProfileEnv);
@@ -225,10 +210,10 @@ describe('AgentProcessManager - API Profile Env Injection (Story 2.3)', () => {
 
       expect(spawnCalls).toHaveLength(1);
       expect(spawnCalls[0].options.env).toMatchObject({
-        ANTHROPIC_MODEL: 'claude-sonnet-4-5-20250929',
-        ANTHROPIC_DEFAULT_HAIKU_MODEL: 'claude-haiku-4-5-20251001',
-        ANTHROPIC_DEFAULT_SONNET_MODEL: 'claude-sonnet-4-5-20250929',
-        ANTHROPIC_DEFAULT_OPUS_MODEL: 'claude-opus-4-5-20251101'
+        ANTHROPIC_MODEL: 'claude-3-5-sonnet-20241022',
+        ANTHROPIC_DEFAULT_HAIKU_MODEL: 'claude-3-5-haiku-20241022',
+        ANTHROPIC_DEFAULT_SONNET_MODEL: 'claude-3-5-sonnet-20241022',
+        ANTHROPIC_DEFAULT_OPUS_MODEL: 'claude-3-5-opus-20241022'
       });
     });
 

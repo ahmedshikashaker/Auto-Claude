@@ -385,12 +385,7 @@ export interface ElectronAPI {
 
   // GitHub integration operations
   getGitHubRepositories: (projectId: string) => Promise<IPCResult<GitHubRepository[]>>;
-  getGitHubIssues: (
-    projectId: string,
-    state?: 'open' | 'closed' | 'all',
-    page?: number,
-    fetchAll?: boolean
-  ) => Promise<IPCResult<{ issues: GitHubIssue[]; hasMore: boolean }>>;
+  getGitHubIssues: (projectId: string, state?: 'open' | 'closed' | 'all') => Promise<IPCResult<GitHubIssue[]>>;
   getGitHubIssue: (projectId: string, issueNumber: number) => Promise<IPCResult<GitHubIssue>>;
   checkGitHubConnection: (projectId: string) => Promise<IPCResult<GitHubSyncStatus>>;
   investigateGitHubIssue: (projectId: string, issueNumber: number, selectedCommentIds?: number[]) => void;

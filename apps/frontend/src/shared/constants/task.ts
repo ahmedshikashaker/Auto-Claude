@@ -9,6 +9,7 @@
 
 // Task status columns in Kanban board order
 export const TASK_STATUS_COLUMNS = [
+  'error',
   'backlog',
   'in_progress',
   'ai_review',
@@ -21,6 +22,7 @@ export type TaskStatusColumn = typeof TASK_STATUS_COLUMNS[number];
 // Status label translation keys (use with t() from react-i18next)
 // Note: pr_created maps to 'done' column in Kanban view (see KanbanBoard.tsx)
 export const TASK_STATUS_LABELS: Record<TaskStatusColumn | 'pr_created', string> = {
+  error: 'columns.error',
   backlog: 'columns.backlog',
   in_progress: 'columns.in_progress',
   ai_review: 'columns.ai_review',
@@ -32,6 +34,7 @@ export const TASK_STATUS_LABELS: Record<TaskStatusColumn | 'pr_created', string>
 // Status colors for UI
 // Note: pr_created maps to 'done' column in Kanban view (see KanbanBoard.tsx)
 export const TASK_STATUS_COLORS: Record<TaskStatusColumn | 'pr_created', string> = {
+  error: 'bg-destructive/10 text-destructive',
   backlog: 'bg-muted text-muted-foreground',
   in_progress: 'bg-info/10 text-info',
   ai_review: 'bg-warning/10 text-warning',
@@ -214,21 +217,3 @@ export const ALLOWED_IMAGE_TYPES_DISPLAY = 'PNG, JPEG, GIF, WebP, SVG';
 
 // Attachments directory name within spec folder
 export const ATTACHMENTS_DIR = 'attachments';
-
-// ============================================
-// JSON Error Markers
-// ============================================
-
-/**
- * Marker prefix for task descriptions that failed JSON parsing.
- * Format: __JSON_ERROR__:<error message>
- * Used in project-store.ts when loading tasks with malformed implementation_plan.json
- */
-export const JSON_ERROR_PREFIX = '__JSON_ERROR__:';
-
-/**
- * Marker suffix for task titles that have JSON parsing errors.
- * Appended to spec directory name, replaced with i18n suffix at render time.
- * Used in project-store.ts when loading tasks with malformed implementation_plan.json
- */
-export const JSON_ERROR_TITLE_SUFFIX = '__JSON_ERROR_SUFFIX__';

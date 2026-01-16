@@ -26,9 +26,7 @@ import {
   EXECUTION_PHASE_LABELS,
   EXECUTION_PHASE_BADGE_COLORS,
   TASK_STATUS_COLUMNS,
-  TASK_STATUS_LABELS,
-  JSON_ERROR_PREFIX,
-  JSON_ERROR_TITLE_SUFFIX
+  TASK_STATUS_LABELS
 } from '../../shared/constants';
 import { startTask, stopTask, checkTaskRunning, recoverStuckTask, isIncompleteHumanReview, archiveTasks } from '../stores/task-store';
 import type { Task, TaskCategory, ReviewReason, TaskStatus } from '../../shared/types';
@@ -98,7 +96,7 @@ function taskCardPropsAreEqual(prevProps: TaskCardProps, nextProps: TaskCardProp
 }
 
 export const TaskCard = memo(function TaskCard({ task, onClick, onStatusChange }: TaskCardProps) {
-  const { t } = useTranslation(['tasks', 'errors']);
+  const { t } = useTranslation('tasks');
   const [isStuck, setIsStuck] = useState(false);
   const [isRecovering, setIsRecovering] = useState(false);
   const stuckCheckRef = useRef<{ timeout: NodeJS.Timeout | null; interval: NodeJS.Timeout | null }>({
@@ -115,26 +113,10 @@ export const TaskCard = memo(function TaskCard({ task, onClick, onStatusChange }
 
   // Memoize expensive computations to avoid running on every render
   // Truncate description for card display - full description shown in modal
-  // Handle JSON error tasks with i18n
-  const sanitizedDescription = useMemo(() => {
-    if (!task.description) return null;
-    // Check for JSON error marker and use i18n
-    if (task.description.startsWith(JSON_ERROR_PREFIX)) {
-      const errorMessage = task.description.slice(JSON_ERROR_PREFIX.length);
-      const translatedDesc = t('errors:task.jsonError.description', { error: errorMessage });
-      return sanitizeMarkdownForDisplay(translatedDesc, 120);
-    }
-    return sanitizeMarkdownForDisplay(task.description, 120);
-  }, [task.description, t]);
-
-  // Memoize title with JSON error suffix handling
-  const displayTitle = useMemo(() => {
-    if (task.title.endsWith(JSON_ERROR_TITLE_SUFFIX)) {
-      const baseName = task.title.slice(0, -JSON_ERROR_TITLE_SUFFIX.length);
-      return `${baseName} ${t('errors:task.jsonError.titleSuffix')}`;
-    }
-    return task.title;
-  }, [task.title, t]);
+  const sanitizedDescription = useMemo(
+    () => task.description ? sanitizeMarkdownForDisplay(task.description, 120) : null,
+    [task.description]
+  );
 
   // Memoize relative time (recalculates only when updatedAt changes)
   const relativeTime = useMemo(
@@ -285,6 +267,8 @@ export const TaskCard = memo(function TaskCard({ task, onClick, onStatusChange }
         return 'success';
       case 'done':
         return 'success';
+      case 'error':
+        return 'destructive';
       default:
         return 'secondary';
     }
@@ -302,6 +286,8 @@ export const TaskCard = memo(function TaskCard({ task, onClick, onStatusChange }
         return t('columns.pr_created');
       case 'done':
         return t('status.complete');
+      case 'error':
+        return t('columns.error');
       default:
         return t('labels.pending');
     }
@@ -341,9 +327,9 @@ export const TaskCard = memo(function TaskCard({ task, onClick, onStatusChange }
         {/* Title - full width, no wrapper */}
         <h3
           className="font-semibold text-sm text-foreground line-clamp-2 leading-snug"
-          title={displayTitle}
+          title={task.title}
         >
-          {displayTitle}
+          {task.title}
         </h3>
 
         {/* Description - sanitized to handle markdown content (memoized) */}
