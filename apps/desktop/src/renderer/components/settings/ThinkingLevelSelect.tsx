@@ -128,11 +128,16 @@ export function ThinkingLevelSelect({
     );
   }
 
-  // ── Standard Low / Medium / High / Extra High dropdown ───────────────────
-  // Only show 'xhigh' (Extra High) for reasoning_effort models (OpenAI, xAI)
-  const levels = reasoningType === 'reasoning_effort'
+  // ── Standard Low / Medium / High / Extra High / Max dropdown ─────────────
+  // xhigh + Max tiers are surfaced for models that support deep reasoning tiers:
+  //   - reasoning_effort models (OpenAI o-series, xAI)
+  //   - Z.AI thinking-capable GLM models (GLM-5.2 supports High/Max effort).
+  //     NB: 'none' reasoning already returned above, so any zai model here is thinking-capable.
+  const supportsExtendedLevels =
+    reasoningType === 'reasoning_effort' || provider === 'zai';
+  const levels = supportsExtendedLevels
     ? THINKING_LEVELS
-    : THINKING_LEVELS.filter((l) => l.value !== 'xhigh');
+    : THINKING_LEVELS.filter((l) => l.value !== 'xhigh' && l.value !== 'max');
 
   return (
     <div className="space-y-1">

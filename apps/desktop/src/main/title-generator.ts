@@ -66,7 +66,7 @@ export class TitleGenerator extends EventEmitter {
       const client = await createSimpleClient({
         systemPrompt: SYSTEM_PROMPT,
         modelShorthand: namingSettings.model,
-        thinkingLevel: namingSettings.thinkingLevel as 'low' | 'medium' | 'high' | 'xhigh',
+        thinkingLevel: namingSettings.thinkingLevel as 'low' | 'medium' | 'high' | 'xhigh' | 'max',
       });
 
       // Handle Codex models the same way as runner.ts:

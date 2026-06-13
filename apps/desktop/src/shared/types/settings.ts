@@ -169,7 +169,7 @@ export interface ColorThemeDefinition {
 }
 
 // Thinking level for model (budget token allocation or reasoning effort)
-export type ThinkingLevel = 'low' | 'medium' | 'high' | 'xhigh';
+export type ThinkingLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 // Model type shorthand
 export type ModelTypeShort = 'haiku' | 'sonnet' | 'opus' | 'opus-1m' | 'opus-4.5';

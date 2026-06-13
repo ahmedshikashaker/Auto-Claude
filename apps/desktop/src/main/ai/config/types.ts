@@ -16,10 +16,10 @@ import type { SupportedProvider } from '../providers/types';
 export type ModelShorthand = 'opus' | 'opus-1m' | 'opus-4.5' | 'sonnet' | 'haiku';
 
 /** Valid thinking levels */
-export type ThinkingLevel = 'low' | 'medium' | 'high' | 'xhigh';
+export type ThinkingLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 /** Valid effort levels for adaptive thinking models */
-export type EffortLevel = 'low' | 'medium' | 'high' | 'xhigh';
+export type EffortLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 /** Execution phases for task pipeline */
 export type Phase = 'spec' | 'planning' | 'coding' | 'qa';
@@ -65,6 +65,7 @@ export const THINKING_BUDGET_MAP: Record<ThinkingLevel, number> = {
   medium: 4096,
   high: 16384,
   xhigh: 32768,
+  max: 65536,
 } as const;
 
 /**
@@ -76,6 +77,7 @@ export const EFFORT_LEVEL_MAP: Record<EffortLevel, string> = {
   medium: 'medium',
   high: 'high',
   xhigh: 'xhigh',
+  max: 'max',
 } as const;
 
 /**
@@ -219,11 +221,13 @@ export function buildThinkingProviderOptions(
 
     case 'openai': {
       if (modelId.startsWith('o1-') || modelId.startsWith('o3-') || modelId.startsWith('o4-')) {
+        // OpenAI o-series caps reasoning effort at 'high' (no xhigh/max tiers).
         const effortMap: Record<ThinkingLevel, string> = {
           low: 'low',
           medium: 'medium',
           high: 'high',
           xhigh: 'high',
+          max: 'high',
         };
         return { openai: { reasoningEffort: effortMap[thinkingLevel] } };
       }
@@ -236,8 +240,15 @@ export function buildThinkingProviderOptions(
 
     case 'zai': {
       // @ai-sdk/openai-compatible merges providerOptions.openaiCompatible into the request body.
-      // Z.AI thinking config uses type: 'enabled'/'disabled' (no budget parameter).
-      return { openaiCompatible: { thinking: { type: 'enabled', clear_thinking: false } } };
+      // Z.AI enables thinking via the `thinking` object. GLM-5.2 (and other thinking-capable
+      // GLM models) support effort tiers (High/Max); we convey effort via `budget_tokens`,
+      // mirroring the Anthropic-compatible endpoint. `clear_thinking: false` preserves
+      // reasoning across turns (Preserved Thinking).
+      return {
+        openaiCompatible: {
+          thinking: { type: 'enabled', budget_tokens: budgetTokens, clear_thinking: false },
+        },
+      };
     }
 
     default:

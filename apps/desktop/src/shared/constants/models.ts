@@ -67,6 +67,7 @@ export const ALL_AVAILABLE_MODELS: ModelOption[] = [
   { value: 'grok-3', label: 'Grok 3', provider: 'xai', description: 'Text', capabilities: { thinking: false, tools: true, vision: false, contextWindow: 131072 } },
   { value: 'grok-3-mini', label: 'Grok 3 Mini', provider: 'xai', description: 'Fast reasoning', capabilities: { thinking: true, tools: true, vision: false, contextWindow: 131072 } },
   // Z.AI (Zhipu)
+  { value: 'glm-5.2[1m]', label: 'GLM-5.2 (1M)', provider: 'zai', description: 'Flagship · 1M context · thinking', capabilities: { thinking: true, tools: true, vision: false, contextWindow: 1000000 } },
   { value: 'glm-5', label: 'GLM-5', provider: 'zai', description: 'Flagship', capabilities: { thinking: false, tools: true, vision: false, contextWindow: 128000 } },
   { value: 'glm-4.7', label: 'GLM-4.7', provider: 'zai', description: 'Previous flagship', capabilities: { thinking: false, tools: true, vision: false, contextWindow: 128000 } },
   { value: 'glm-4.6v', label: 'GLM-4.6V', provider: 'zai', description: 'Multimodal', capabilities: { thinking: false, tools: true, vision: true, contextWindow: 128000 } },
@@ -88,7 +89,8 @@ export const THINKING_BUDGET_MAP: Record<string, number> = {
   low: 1024,
   medium: 4096,
   high: 16384,
-  xhigh: 32768
+  xhigh: 32768,
+  max: 65536
 } as const;
 
 // ============================================
@@ -100,7 +102,8 @@ export const THINKING_LEVELS = [
   { value: 'low', label: 'Low', description: 'Brief consideration' },
   { value: 'medium', label: 'Medium', description: 'Moderate analysis' },
   { value: 'high', label: 'High', description: 'Deep thinking' },
-  { value: 'xhigh', label: 'Extra High', description: 'Maximum reasoning' }
+  { value: 'xhigh', label: 'Extra High', description: 'Very deep reasoning' },
+  { value: 'max', label: 'Max', description: 'Maximum reasoning' }
 ] as const;
 
 // ============================================
@@ -311,10 +314,10 @@ export const PROVIDER_PRESET_DEFINITIONS: Partial<Record<BuiltinProvider, Record
     balanced: { primaryModel: 'llama-3.3-70b-versatile',     primaryThinking: 'low', phaseModels: { spec: 'llama-3.3-70b-versatile', planning: 'llama-3.3-70b-versatile', coding: 'llama-3.3-70b-versatile', qa: 'llama-3.3-70b-versatile' },                 phaseThinking: { spec: 'low', planning: 'low', coding: 'low', qa: 'low' } },
   },
   zai: {
-    auto:     { primaryModel: 'glm-5',          primaryThinking: 'low', phaseModels: { spec: 'glm-5', planning: 'glm-5', coding: 'glm-5', qa: 'glm-5' },                         phaseThinking: { spec: 'low', planning: 'low', coding: 'low', qa: 'low' } },
-    complex:  { primaryModel: 'glm-5',          primaryThinking: 'low', phaseModels: { spec: 'glm-5', planning: 'glm-5', coding: 'glm-5', qa: 'glm-5' },                         phaseThinking: { spec: 'low', planning: 'low', coding: 'low', qa: 'low' } },
-    balanced: { primaryModel: 'glm-4.7',        primaryThinking: 'low', phaseModels: { spec: 'glm-4.7', planning: 'glm-4.7', coding: 'glm-4.7', qa: 'glm-4.7' },                 phaseThinking: { spec: 'low', planning: 'low', coding: 'low', qa: 'low' } },
-    quick:    { primaryModel: 'glm-4.5-flash',  primaryThinking: 'low', phaseModels: { spec: 'glm-4.5-flash', planning: 'glm-4.5-flash', coding: 'glm-4.5-flash', qa: 'glm-4.5-flash' }, phaseThinking: { spec: 'low', planning: 'low', coding: 'low', qa: 'low' } },
+    auto:     { primaryModel: 'glm-5.2[1m]', primaryThinking: 'high', phaseModels: { spec: 'glm-5.2[1m]', planning: 'glm-5.2[1m]', coding: 'glm-5.2[1m]', qa: 'glm-5.2[1m]' }, phaseThinking: { spec: 'high', planning: 'high', coding: 'high', qa: 'high' } },
+    complex:  { primaryModel: 'glm-5.2[1m]', primaryThinking: 'max',  phaseModels: { spec: 'glm-5.2[1m]', planning: 'glm-5.2[1m]', coding: 'glm-5.2[1m]', qa: 'glm-5.2[1m]' }, phaseThinking: { spec: 'max', planning: 'max', coding: 'max', qa: 'max' } },
+    balanced: { primaryModel: 'glm-4.7',        primaryThinking: 'medium', phaseModels: { spec: 'glm-4.7', planning: 'glm-4.7', coding: 'glm-4.7', qa: 'glm-4.7' },                 phaseThinking: { spec: 'medium', planning: 'medium', coding: 'medium', qa: 'medium' } },
+    quick:    { primaryModel: 'glm-4.5-flash',  primaryThinking: 'low',    phaseModels: { spec: 'glm-4.5-flash', planning: 'glm-4.5-flash', coding: 'glm-4.5-flash', qa: 'glm-4.5-flash' }, phaseThinking: { spec: 'low', planning: 'low', coding: 'low', qa: 'low' } },
   },
   ollama: {
     auto:     { primaryModel: '', primaryThinking: 'low', phaseModels: { spec: '', planning: '', coding: '', qa: '' }, phaseThinking: { spec: 'low', planning: 'low', coding: 'low', qa: 'low' } },
@@ -360,7 +363,7 @@ export const FAST_MODE_MODELS: readonly string[] = ['opus', 'opus-1m'] as const;
 export const ADAPTIVE_THINKING_MODELS: readonly string[] = ['opus', 'opus-1m'] as const;
 
 // Valid thinking levels for validation
-export const VALID_THINKING_LEVELS = ['low', 'medium', 'high', 'xhigh'] as const;
+export const VALID_THINKING_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
 
 // Legacy thinking level mappings (must match backend phase_config.py LEGACY_THINKING_LEVEL_MAP)
 export const LEGACY_THINKING_MAP: Record<string, string> = { ultrathink: 'high', none: 'low' } as const;
@@ -396,7 +399,7 @@ export type ReasoningType =
 
 export interface ReasoningConfig {
   type: ReasoningType;
-  level?: 'low' | 'medium' | 'high' | 'xhigh';
+  level?: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 }
 
 export interface ProviderModelSpec {
@@ -419,6 +422,14 @@ export const DEFAULT_MODEL_EQUIVALENCES: Record<string, Partial<Record<BuiltinPr
     zai: { modelId: 'glm-5', reasoning: { type: 'none' } },
     anthropic: { modelId: 'claude-opus-4-6', reasoning: { type: 'adaptive_effort', level: 'high' } },
     openai: { modelId: 'gpt-5.3-codex', reasoning: { type: 'reasoning_effort', level: 'high' } },
+  },
+  'glm-5.2[1m]': {
+    // Z.AI GLM-5.2 with 1M context window. Supports High and Max thinking-effort tiers
+    // (Z.AI recommends Max for coding). Effort is conveyed via budget_tokens.
+    zai: { modelId: 'glm-5.2[1m]', reasoning: { type: 'thinking_tokens', level: 'high' } },
+    anthropic: { modelId: 'claude-opus-4-6', reasoning: { type: 'adaptive_effort', level: 'high' } },
+    openai: { modelId: 'gpt-5.3-codex', reasoning: { type: 'reasoning_effort', level: 'high' } },
+    google: { modelId: 'gemini-2.5-pro', reasoning: { type: 'thinking_toggle', level: 'high' } },
   },
   'glm-4.7': {
     zai: { modelId: 'glm-4.7', reasoning: { type: 'none' } },

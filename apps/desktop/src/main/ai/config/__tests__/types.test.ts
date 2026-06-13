@@ -32,6 +32,29 @@ describe('buildThinkingProviderOptions', () => {
     });
   });
 
+  it('should map max to high for OpenAI (o-series caps at high)', () => {
+    const result = buildThinkingProviderOptions('o4-mini', 'max');
+    expect(result).toEqual({
+      openai: { reasoningEffort: 'high' },
+    });
+  });
+
+  it('should return Z.AI thinking options with budget_tokens for GLM models', () => {
+    const result = buildThinkingProviderOptions('glm-5.2[1m]', 'high');
+    expect(result).toEqual({
+      openaiCompatible: {
+        thinking: { type: 'enabled', budget_tokens: 16384, clear_thinking: false },
+      },
+    });
+  });
+
+  it('should scale Z.AI budget_tokens with thinking level (max)', () => {
+    const result = buildThinkingProviderOptions('glm-5', 'max');
+    expect(
+      (result?.openaiCompatible?.thinking as { budget_tokens: number })?.budget_tokens,
+    ).toBe(65536);
+  });
+
   it('should return Google thinking options for Gemini models', () => {
     const result = buildThinkingProviderOptions('gemini-2.5-pro', 'medium');
     expect(result).toEqual({
@@ -54,8 +77,8 @@ describe('buildThinkingProviderOptions', () => {
   });
 
   it('should use correct budget for each thinking level', () => {
-    const levels: ThinkingLevel[] = ['low', 'medium', 'high', 'xhigh'];
-    const budgets = [1024, 4096, 16384, 32768];
+    const levels: ThinkingLevel[] = ['low', 'medium', 'high', 'xhigh', 'max'];
+    const budgets = [1024, 4096, 16384, 32768, 65536];
 
     for (let i = 0; i < levels.length; i++) {
       const result = buildThinkingProviderOptions('claude-sonnet-4-6', levels[i]);

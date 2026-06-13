@@ -55,7 +55,7 @@ export class TerminalNameGenerator extends EventEmitter {
       const client = await createSimpleClient({
         systemPrompt: SYSTEM_PROMPT,
         modelShorthand: namingSettings.model,
-        thinkingLevel: namingSettings.thinkingLevel as 'low' | 'medium' | 'high' | 'xhigh',
+        thinkingLevel: namingSettings.thinkingLevel as 'low' | 'medium' | 'high' | 'xhigh' | 'max',
       });
 
       const result = await generateText({
