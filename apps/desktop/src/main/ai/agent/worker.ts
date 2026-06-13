@@ -598,6 +598,29 @@ async function runBuildOrchestrator(
         runConfig.outputSchema,
       );
     },
+
+    // Provide a LanguageModel for lightweight JSON repair in runPlanningPhase
+    // (see build-orchestrator.ts). Without this, the repair fallback is dead
+    // code: models that don't reliably Write implementation_plan.json via the
+    // tool (e.g. GLM-5.x) can never produce a valid plan, and planning fails
+    // with "phases: array must have at least 1 item(s)" after retries. We reuse
+    // the session's resolved model + provider auth — the same model planning
+    // already uses.
+    getModel: async (_agentType) => {
+      try {
+        return createProvider({
+          config: {
+            provider: session.provider as SupportedProvider,
+            apiKey: session.apiKey,
+            baseURL: session.baseURL,
+            oauthTokenFilePath: session.oauthTokenFilePath,
+          },
+          modelId: session.modelId,
+        });
+      } catch {
+        return undefined;
+      }
+    },
   });
 
   orchestrator.on('phase-change', (phase: ExecutionPhase, message: string) => {

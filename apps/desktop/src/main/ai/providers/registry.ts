@@ -79,11 +79,14 @@ function createProviderSDKInstance(
       });
 
     case SupportedProvider.ZAI:
+      // supportsStructuredOutputs enabled — z.ai supports JSON-schema response
+      // format. See factory.ts ZAI case for rationale.
       return createOpenAICompatible({
         name: 'zai',
         apiKey,
         baseURL: baseURL ?? 'https://api.z.ai/api/paas/v4',
         headers,
+        supportsStructuredOutputs: true,
       });
 
     case SupportedProvider.Ollama: {

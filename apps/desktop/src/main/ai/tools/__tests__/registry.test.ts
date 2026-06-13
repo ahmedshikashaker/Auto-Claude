@@ -18,6 +18,8 @@ import {
 } from '../registry';
 import type { DefinedTool } from '../define';
 import type { ToolContext } from '../types';
+import { buildToolRegistry } from '../build-registry';
+import { getMcpServerConfig } from '../../mcp/registry';
 
 // =============================================================================
 // Helpers
@@ -258,5 +260,44 @@ describe('getRequiredMcpServers (registry)', () => {
     });
     expect(servers).toContain('auto-claude');
     expect(servers).not.toContain('memory');
+  });
+});
+
+// =============================================================================
+// Auto-Claude in-process tools (build management)
+// =============================================================================
+
+describe('auto-claude in-process tools', () => {
+  it('buildToolRegistry registers all 6 mcp__auto-claude__ tools', () => {
+    const registry = buildToolRegistry();
+    expect(registry.getTool('mcp__auto-claude__update_subtask_status')).toBeDefined();
+    expect(registry.getTool('mcp__auto-claude__get_build_progress')).toBeDefined();
+    expect(registry.getTool('mcp__auto-claude__record_discovery')).toBeDefined();
+    expect(registry.getTool('mcp__auto-claude__record_gotcha')).toBeDefined();
+    expect(registry.getTool('mcp__auto-claude__get_session_context')).toBeDefined();
+    expect(registry.getTool('mcp__auto-claude__update_qa_status')).toBeDefined();
+  });
+
+  it('getToolsForAgent delivers the auto-claude tools configured per agent', () => {
+    const registry = buildToolRegistry();
+    const context = createMockContext();
+
+    // coder.autoClaudeTools: update_subtask_status, get_build_progress,
+    // record_discovery, record_gotcha, get_session_context
+    const coderTools = registry.getToolsForAgent('coder', context);
+    expect(Object.keys(coderTools)).toContain('mcp__auto-claude__update_subtask_status');
+    expect(Object.keys(coderTools)).toContain('mcp__auto-claude__record_gotcha');
+    expect(Object.keys(coderTools)).toContain('mcp__auto-claude__get_session_context');
+
+    // qa_reviewer.autoClaudeTools includes update_qa_status
+    const qaTools = registry.getToolsForAgent('qa_reviewer', context);
+    expect(Object.keys(qaTools)).toContain('mcp__auto-claude__update_qa_status');
+  });
+
+  it('does not expose auto-claude via a (broken) MCP server anymore', () => {
+    // The auto-claude tools are delivered in-process; getMcpServerConfig must
+    // return null so resolveMcpServers skips spawning a server for it (the old
+    // spawn referenced a never-committed auto-claude-mcp-server.js).
+    expect(getMcpServerConfig('auto-claude', { specDir: '/test/spec' })).toBeNull();
   });
 });

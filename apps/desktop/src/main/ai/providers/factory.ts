@@ -134,11 +134,18 @@ function createProviderInstance(config: ProviderConfig) {
       });
 
     case SupportedProvider.ZAI:
+      // supportsStructuredOutputs: z.ai supports OpenAI-style JSON-schema
+      // response format (see docs.z.ai/guides/capabilities/struct-output).
+      // Without this flag the AI SDK disables responseFormat, so every
+      // structured-output call (Output.object) warns "responseFormat is not
+      // supported" and falls back — silently breaking structured repair, spec
+      // assessment, etc.
       return createOpenAICompatible({
         name: 'zai',
         apiKey,
         baseURL: baseURL ?? 'https://api.z.ai/api/paas/v4',
         headers,
+        supportsStructuredOutputs: true,
       });
 
     case SupportedProvider.Ollama: {

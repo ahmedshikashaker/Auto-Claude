@@ -116,7 +116,10 @@ export class ToolRegistry {
     context: ToolContext,
   ): Record<string, AITool> {
     const config = getAgentConfig(agentType);
-    const allowedNames = new Set(config.tools);
+    // Merge builtin `tools` with `autoClaudeTools` — the latter are the
+    // in-process build-management tools (mcp__auto-claude__*) registered in
+    // build-registry.ts.
+    const allowedNames = new Set<string>([...config.tools, ...config.autoClaudeTools]);
     const result: Record<string, AITool> = {};
 
     for (const [name, definedTool] of Array.from(this.tools.entries())) {

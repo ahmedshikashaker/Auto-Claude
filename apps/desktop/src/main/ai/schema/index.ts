@@ -38,6 +38,7 @@ export {
   validateJsonFile,
   validateAndNormalizeJsonFile,
   repairJsonWithLLM,
+  generateImplementationPlanFromSpec,
   parseLLMJson,
   formatZodErrors,
   buildValidationRetryPrompt,

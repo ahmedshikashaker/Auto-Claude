@@ -105,25 +105,15 @@ describe('getMcpServerConfig', () => {
   });
 
   describe('auto-claude', () => {
-    it('returns auto-claude config with empty specDir as default', () => {
-      const config = getMcpServerConfig('auto-claude', {});
-      expect(config).not.toBeNull();
-      expect(config?.id).toBe('auto-claude');
-    });
-
-    it('injects SPEC_DIR into transport env', () => {
-      const config = getMcpServerConfig('auto-claude', { specDir: '/project/.auto-claude/specs/001-feature' });
-      expect(config?.transport.type).toBe('stdio');
-      if (config?.transport.type === 'stdio') {
-        expect(config.transport.env?.SPEC_DIR).toBe('/project/.auto-claude/specs/001-feature');
-      }
-    });
-
-    it('uses node command', () => {
-      const config = getMcpServerConfig('auto-claude', {});
-      if (config?.transport.type === 'stdio') {
-        expect(config.transport.command).toBe('node');
-      }
+    // The auto-claude build-management tools (progress, session context,
+    // discoveries, gotchas, subtask & QA status) are delivered IN-PROCESS via
+    // the ToolRegistry (see tools/auto-claude/ + build-registry.ts), not via a
+    // separate MCP server process. getMcpServerConfig therefore returns null so
+    // resolveMcpServers skips spawning a server for it. Previously it spawned a
+    // never-committed auto-claude-mcp-server.js, which crashed every run.
+    it('returns null (tools are delivered in-process, not via MCP)', () => {
+      expect(getMcpServerConfig('auto-claude', {})).toBeNull();
+      expect(getMcpServerConfig('auto-claude', { specDir: '/project/.auto-claude/specs/001-feature' })).toBeNull();
     });
   });
 
@@ -174,12 +164,10 @@ describe('resolveMcpServers', () => {
     expect(configs[0].id).toBe('memory');
   });
 
-  it('passes specDir through to auto-claude config', () => {
+  it('skips auto-claude (delivered in-process, not via MCP server)', () => {
     const specDir = '/my-project/.auto-claude/specs/042-auth';
     const configs = resolveMcpServers(['auto-claude'], { specDir });
-    expect(configs).toHaveLength(1);
-    if (configs[0].transport.type === 'stdio') {
-      expect(configs[0].transport.env?.SPEC_DIR).toBe(specDir);
-    }
+    // No server config is returned — the tools come from the in-process registry.
+    expect(configs).toEqual([]);
   });
 });

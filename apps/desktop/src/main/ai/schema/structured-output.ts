@@ -24,6 +24,7 @@ import { readFile, writeFile, mkdtemp, rename, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { safeParseJson } from '../../utils/json-repair';
+import { ImplementationPlanSchema } from './implementation-plan';
 
 // =============================================================================
 // LLM Text → Typed Data Helper
@@ -391,3 +392,95 @@ export const IMPLEMENTATION_PLAN_SCHEMA_HINT = `\`\`\`
 
 IMPORTANT: Each subtask MUST be an object with at least "id", "title", and "status" fields.
 Do NOT write subtasks as plain strings — they must be objects.`;
+
+// =============================================================================
+// Non-Structured Plan Generation (fallback for providers without Output.object)
+// =============================================================================
+
+/**
+ * Generate an implementation plan from the spec WITHOUT structured output.
+ *
+ * Fallback for providers/models that don't reliably support Output.object()
+ * constrained decoding (e.g. z.ai / GLM). Uses a plain generateText() call with
+ * a JSON-emission prompt, then validates via ImplementationPlanSchema — whose
+ * preprocessors coerce common LLM format variations (flat steps/tasks,
+ * files_to_modify, string subtasks, etc.) into the required
+ * phases[].subtasks[] structure.
+ *
+ * @param specDir - Spec directory (reads spec.md; writes implementation_plan.json)
+ * @param model - Language model used for generation
+ * @returns Validation result; on success the plan is written to disk
+ */
+export async function generateImplementationPlanFromSpec(
+  specDir: string,
+  model: LanguageModel,
+): Promise<StructuredOutputValidation<unknown>> {
+  const { generateText } = await import('ai');
+
+  // Read the spec. Prefer spec.md; fall back to the existing plan's description.
+  let specContent: string | undefined;
+  try {
+    specContent = await readFile(join(specDir, 'spec.md'), 'utf-8');
+  } catch {
+    specContent = undefined;
+  }
+  if (!specContent?.trim()) {
+    try {
+      const existing = await readFile(join(specDir, 'implementation_plan.json'), 'utf-8');
+      const parsed = safeParseJson<{ description?: string }>(existing);
+      specContent = parsed?.description;
+    } catch {
+      specContent = undefined;
+    }
+  }
+  if (!specContent?.trim()) {
+    return { valid: false, errors: ['No spec.md (or plan description) to generate the plan from'] };
+  }
+
+  const prompt = [
+    'You are a senior software engineer creating an implementation plan.',
+    'Break the following feature specification into a concrete, actionable plan.',
+    '',
+    '## Feature Specification',
+    specContent.trim(),
+    '',
+    '## Output format',
+    'Respond with ONLY a JSON object — no prose, no explanations, no markdown fences.',
+    'Use exactly this structure:',
+    IMPLEMENTATION_PLAN_SCHEMA_HINT,
+    '',
+    'Rules:',
+    '- "phases" MUST contain at least 1 phase; each phase MUST contain at least 1 subtask.',
+    '- Decompose into 2-5 logical phases (e.g. foundation → core features → integration → polish).',
+    '- Each subtask needs a short "title" (3-10 words) and a detailed "description" of what to implement.',
+    '- Set every subtask "status" to "pending".',
+    '- "workflow_type" is one of: feature, refactor, bugfix, migration, simple, investigation.',
+  ].join('\n');
+
+  try {
+    const result = await generateText({ model, prompt });
+    const plan = parseLLMJson(result.text, ImplementationPlanSchema);
+    if (!plan) {
+      return { valid: false, errors: ['Model response was not valid JSON matching the plan schema'] };
+    }
+
+    // Write atomically (temp + rename), mirroring repairJsonWithLLM.
+    const planPath = join(specDir, 'implementation_plan.json');
+    const tempDir = await mkdtemp(join(tmpdir(), 'auto-claude-plan-'));
+    const tempFile = join(tempDir, 'implementation_plan.json');
+    try {
+      await writeFile(tempFile, JSON.stringify(plan, null, 2));
+      await rename(tempFile, planPath);
+    } finally {
+      await unlink(tempFile).catch(() => undefined);
+      const { rmdir } = await import('node:fs/promises');
+      await rmdir(tempDir).catch(() => undefined);
+    }
+    return { valid: true, data: plan, errors: [] };
+  } catch (err) {
+    return {
+      valid: false,
+      errors: [`Plan generation failed: ${err instanceof Error ? err.message : String(err)}`],
+    };
+  }
+}

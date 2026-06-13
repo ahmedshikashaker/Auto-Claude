@@ -28,6 +28,7 @@ import {
   ImplementationPlanOutputSchema,
   validateAndNormalizeJsonFile,
   repairJsonWithLLM,
+  generateImplementationPlanFromSpec,
   buildValidationRetryPrompt,
   IMPLEMENTATION_PLAN_SCHEMA_HINT,
 } from '../schema';
@@ -400,6 +401,26 @@ export class BuildOrchestrator extends EventEmitter {
 
       // Lightweight repair failed or unavailable — fall back to full re-plan
       if (validationFailures >= MAX_PLANNING_VALIDATION_RETRIES) {
+        // LAST RESORT: some providers (e.g. z.ai / GLM) don't reliably support
+        // Output.object() structured output, so agentic planning + structured
+        // repair may both fail to produce phases. Generate the plan as plain
+        // JSON directly from the spec and rely on the schema's coercion for
+        // format variations (flat steps/tasks, string subtasks, etc.).
+        if (this.config.getModel) {
+          const genModel = await this.config.getModel('planner');
+          if (genModel) {
+            const generated = await generateImplementationPlanFromSpec(this.config.specDir, genModel);
+            if (generated.valid) {
+              this.emitTyped('log', 'Generated implementation plan from spec (non-structured fallback)');
+              if (this.config.sourceSpecDir && this.config.syncSpecToSource) {
+                await this.config.syncSpecToSource(this.config.specDir, this.config.sourceSpecDir);
+              }
+              this.markPhaseCompleted('planning');
+              return { success: true };
+            }
+            this.emitTyped('log', `Non-structured plan generation failed: ${generated.errors.join(', ')}`);
+          }
+        }
         return {
           success: false,
           error: `Implementation plan validation failed after ${validationFailures} attempts: ${validation.errors.join(', ')}`,
@@ -673,11 +694,22 @@ export class BuildOrchestrator extends EventEmitter {
 
   /**
    * Check if this is a first run (no implementation plan exists).
+   *
+   * A plan file that exists but has zero phases is NOT a real plan — the roadmap
+   * and ideation task converters pre-create such a scaffold (`phases: []`,
+   * `planStatus: 'pending'`), and a crashed planning run can leave the same shape.
+   * In both cases planning has not actually produced phases yet, so we treat it as
+   * a first run. Otherwise runPlanningPhase() gets skipped and the pre-coding
+   * validation fails with "phases: array must have at least 1 item(s)".
    */
   private async isFirstRun(): Promise<boolean> {
     const planPath = join(this.config.specDir, 'implementation_plan.json');
     try {
-      await readFile(planPath, 'utf-8');
+      const raw = await readFile(planPath, 'utf-8');
+      const plan = safeParseJson<ImplementationPlan>(raw);
+      if (!plan || !Array.isArray(plan.phases) || plan.phases.length === 0) {
+        return true;
+      }
       return false;
     } catch {
       return true;

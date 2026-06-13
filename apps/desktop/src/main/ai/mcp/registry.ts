@@ -99,24 +99,15 @@ const PUPPETEER_SERVER: McpServerConfig = {
   },
 };
 
-/**
- * Auto-Claude MCP server - custom build management tools.
- * Used by planner, coder, and QA agents for build progress tracking.
- */
-function createAutoClaudeServer(specDir: string): McpServerConfig {
-  return {
-    id: 'auto-claude',
-    name: 'Aperant',
-    description: 'Build management tools (progress tracking, session context)',
-    enabledByDefault: true,
-    transport: {
-      type: 'stdio',
-      command: 'node',
-      args: ['auto-claude-mcp-server.js'],
-      env: { SPEC_DIR: specDir },
-    },
-  };
-}
+// NOTE: The "auto-claude" build-management tools (progress tracking, session
+// context, discoveries/gotchas, subtask & QA status) are delivered IN-PROCESS
+// via the ToolRegistry (see apps/desktop/src/main/ai/tools/auto-claude/ and
+// build-registry.ts). They are NOT exposed via a separate MCP server process.
+// The old `createAutoClaudeServer` spawned `auto-claude-mcp-server.js`, a file
+// that was never committed, causing a MODULE_NOT_FOUND crash on every agent
+// spawn. getMcpServerConfig('auto-claude') now returns null (see default case),
+// so resolveMcpServers skips it while the in-process tools provide the
+// functionality directly.
 
 // =============================================================================
 // Registry
@@ -175,10 +166,9 @@ export function getMcpServerConfig(
     case 'puppeteer':
       return PUPPETEER_SERVER;
 
-    case 'auto-claude': {
-      const specDir = options.specDir ?? '';
-      return createAutoClaudeServer(specDir);
-    }
+    // 'auto-claude' is intentionally not handled here: its tools are provided
+    // in-process (see the note above and tools/auto-claude/). Falls through to
+    // default → null so resolveMcpServers skips spawning a server for it.
 
     default:
       return null;
